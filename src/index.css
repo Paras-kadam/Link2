@@ -1,0 +1,68 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --bg-main: #050505;
+    --bg-surface: #0a0a0a;
+    --bg-secondary: #101010;
+    --bg-hover: #151515;
+    --bg-active: #161616;
+    --border-color: #1c1c1c;
+    --text-primary: #f2f2f2;
+    --text-secondary: #a0a0a0;
+    --text-muted: #666666;
+  }
+
+  * {
+    border-color: #1c1c1c;
+  }
+
+  body {
+    background-color: #050505;
+    color: #f2f2f2;
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    overflow-x: hidden;
+    margin: 0;
+    padding: 0;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Custom Scrollbar - Monochrome & Thin */
+  ::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #050505;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #1c1c1c;
+    border-radius: 2px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #333333;
+  }
+}
+
+/* Utilities for Raw Minimal UI */
+.bg-main { background-color: #050505; }
+.bg-surface { background-color: #0a0a0a; }
+.bg-surface-2 { background-color: #101010; }
+.bg-surface-hover { background-color: #151515; }
+.bg-surface-active { background-color: #161616; }
+
+.border-subtle { border-color: #1c1c1c; }
+
+.text-main { color: #f2f2f2; }
+.text-sub { color: #a0a0a0; }
+.text-muted-custom { color: #666666; }
+
+/* Safe Area Insets for Mobile Keyboards & Devices */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.h-dvh {
+  height: 100dvh;
+}
