@@ -13,7 +13,7 @@ export interface User {
 }
 
 export type MessageType = 'text' | 'image' | 'voice' | 'file' | 'system' | 'call_log';
-export type MessageStatus = 'sent' | 'delivered' | 'read';
+export type MessageStatus = 'sending' | 'sent' | 'delivered' | 'read' | 'failed';
 
 export interface Reaction {
   emoji: string;
@@ -31,6 +31,7 @@ export interface Message {
   reactions?: Record<string, string[]>; // emoji -> array of userIds
   isPinned?: boolean;
   isStarred?: boolean;
+  isEdited?: boolean;
   replyTo?: {
     id: string;
     senderName: string;

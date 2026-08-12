@@ -4,7 +4,7 @@ import { useApp } from '../../context/AppContext';
 import { VoiceRecorderModal } from './VoiceRecorderModal';
 
 export const MessageInput: React.FC = () => {
-  const { sendMessage, replyingTo, setReplyingTo, showToast } = useApp();
+  const { sendMessage, replyingTo, setReplyingTo, showToast, setIsPartnerTyping } = useApp();
   const [text, setText] = useState('');
   const [showAttachMenu, setShowAttachMenu] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -19,6 +19,7 @@ export const MessageInput: React.FC = () => {
     setText('');
     setShowEmojiPicker(false);
     setShowAttachMenu(false);
+    setIsPartnerTyping(false);
 
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
@@ -155,7 +156,13 @@ export const MessageInput: React.FC = () => {
               setText(e.target.value);
               e.target.style.height = 'auto';
               e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`;
+              if (e.target.value.trim() !== '') {
+                setIsPartnerTyping(true); // this actually emits my typing via context mapping
+              } else {
+                setIsPartnerTyping(false);
+              }
             }}
+            onBlur={() => setIsPartnerTyping(false)}
             onKeyDown={handleKeyDown}
             placeholder="Type message..."
             rows={1}

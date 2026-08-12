@@ -8,8 +8,10 @@ import type {
   AppNotification,
   UserStatus,
 } from '../types';
-import { partnerUser as defaultPartnerUser, initialMessages, initialNotifications } from '../mock/mockData';
+import { partnerUser as defaultPartnerUser, initialNotifications } from '../mock/mockData';
 import { authService } from '../services/authService';
+import { socketService } from '../services/socketService';
+import { messageService } from '../services/messageService';
 
 interface AppContextType {
   // Auth state
@@ -69,8 +71,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [currentUser, setCurrentUser] = useState<User | null>(null);
 
   const [partnerUser, setPartnerUser] = useState<User>(defaultPartnerUser);
-  const [messages, setMessages] = useState<Message[]>(initialMessages);
-  const [partnerStatus, setPartnerStatus] = useState<UserStatus>('online');
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [partnerStatus, setPartnerStatus] = useState<UserStatus>('offline');
   const [isPartnerTyping, setIsPartnerTyping] = useState<boolean>(false);
   const [activeCall, setActiveCall] = useState<CallSession | null>(null);
   const [activeDrawer, setActiveDrawer] = useState<'none' | 'media' | 'profile' | 'settings' | 'privacy' | 'search' | 'notifications'>('none');
@@ -93,6 +95,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [notifications, setNotifications] = useState<AppNotification[]>(initialNotifications);
   const [activeToast, setActiveToast] = useState<{ title: string; message: string; type: string } | null>(null);
 
+  const showToast = useCallback((title: string, message: string, type: string = 'info') => {
+    setActiveToast({ title, message, type });
+    setTimeout(() => {
+      setActiveToast(null);
+    }, 4000);
+  }, []);
+
+  const closeToast = useCallback(() => setActiveToast(null), []);
+
   // Initialize Auth
   useEffect(() => {
     const initAuth = async () => {
@@ -110,6 +121,63 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     initAuth();
   }, []);
 
+  // Socket Connection and Event Listeners
+  useEffect(() => {
+    if (isAuthenticated && currentUser) {
+      socketService.connect();
+
+      // Fetch message history
+      messageService.getMessageHistory().then((data) => {
+        setMessages(data.messages);
+      }).catch(err => {
+        console.error('Failed to fetch messages:', err);
+      });
+
+      socketService.on('user:online', () => {
+        setPartnerStatus('online');
+      });
+
+      socketService.on('user:offline', () => {
+        setPartnerStatus('offline');
+      });
+
+      socketService.on('typing:start', () => {
+        setIsPartnerTyping(true);
+      });
+
+      socketService.on('typing:stop', () => {
+        setIsPartnerTyping(false);
+      });
+
+      socketService.on('message:new', (msg: any) => {
+        const formattedMsg = messageService.mapBackendMessageToFrontend(msg);
+        setMessages(prev => [...prev, formattedMsg]);
+        
+        // If chat is open, mark as read
+        socketService.emit('message:read', { messageId: msg._id });
+      });
+
+      socketService.on('message:status', ({ messageId, status }) => {
+        setMessages(prev => prev.map(m => m.id === messageId ? { ...m, status } : m));
+      });
+
+      socketService.on('message:updated', (msg: any) => {
+        const formattedMsg = messageService.mapBackendMessageToFrontend(msg);
+        setMessages(prev => prev.map(m => m.id === formattedMsg.id ? formattedMsg : m));
+      });
+
+      socketService.on('message:deleted', ({ messageId }) => {
+        setMessages(prev => prev.map(m => m.id === messageId ? { ...m, content: 'This message was deleted', isDeleted: true } : m));
+      });
+
+      return () => {
+        socketService.disconnect();
+      };
+    } else {
+      socketService.disconnect();
+    }
+  }, [isAuthenticated, currentUser]);
+
   const handleLogin = async (email: string, pass: string) => {
     const { user } = await authService.login(email, pass);
     setCurrentUser(user);
@@ -118,42 +186,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const handleLogout = async () => {
     await authService.logout();
+    socketService.disconnect();
     setIsAuthenticated(false);
     setCurrentUser(null);
+    setMessages([]);
   };
 
-  // Call timer simulation
-  useEffect(() => {
-    let interval: any;
-    if (activeCall && activeCall.state === 'connected') {
-      interval = setInterval(() => {
-        setActiveCall((prev) => prev ? { ...prev, durationSeconds: prev.durationSeconds + 1 } : null);
-      }, 1000);
+  const setPartnerTypingThrottled = useCallback((typing: boolean) => {
+    if (typing) {
+      socketService.emit('typing:start');
+    } else {
+      socketService.emit('typing:stop');
     }
-    return () => clearInterval(interval);
-  }, [activeCall?.state]);
-
-  const showToast = useCallback((title: string, message: string, type: string = 'info') => {
-    setActiveToast({ title, message, type });
-    setTimeout(() => {
-      setActiveToast(null);
-    }, 4000);
   }, []);
-
-  const closeToast = useCallback(() => setActiveToast(null), []);
 
   const sendMessage = useCallback((content: string, type: Message['type'] = 'text', extra?: Partial<Message>) => {
     if (!currentUser) return;
     
-    const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    // Optimistic UI updates
+    const tempId = `temp_${Date.now()}`;
     const newMsg: Message = {
-      id: `msg_${Date.now()}`,
+      id: tempId,
       senderId: currentUser.id,
       recipientId: partnerUser.id,
       type,
       content,
-      timestamp: timeStr,
-      status: 'sent',
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      status: 'sending',
       isSelf: true,
       replyTo: replyingTo ? { id: replyingTo.id, senderName: replyingTo.senderId === currentUser.id ? 'You' : partnerUser.name, content: replyingTo.content } : undefined,
       ...extra,
@@ -162,48 +221,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setMessages((prev) => [...prev, newMsg]);
     setReplyingTo(null);
 
-    // Simulate delivery & read
-    setTimeout(() => {
-      setMessages((prev) => prev.map((m) => m.id === newMsg.id ? { ...m, status: 'delivered' } : m));
-    }, 1200);
-
-    setTimeout(() => {
-      setMessages((prev) => prev.map((m) => m.id === newMsg.id ? { ...m, status: 'read' } : m));
-    }, 2500);
-
-    // Simulate partner typing & auto-response if text message sent
-    if (type === 'text' && !content.startsWith('/')) {
-      setTimeout(() => {
-        setIsPartnerTyping(true);
-      }, 3000);
-
-      setTimeout(() => {
-        setIsPartnerTyping(false);
-        const responses = [
-          "Received loud and clear! The end-to-end security protocol looks rock solid.",
-          "Got it! I love how fast and responsive this UI feels.",
-          "Awesome! Let's check out the voice and video call features next.",
-          "Perfect! Encrypted media transmission complete."
-        ];
-        const randomResp = responses[Math.floor(Math.random() * responses.length)];
-        const partnerMsg: Message = {
-          id: `msg_partner_${Date.now()}`,
-          senderId: partnerUser.id,
-          recipientId: currentUser.id,
-          type: 'text',
-          content: randomResp,
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          status: 'read',
-        };
-        setMessages((prev) => [...prev, partnerMsg]);
-        showToast(`New Message from ${partnerUser.name}`, randomResp, 'message');
-      }, 6000);
-    }
+    socketService.emit('message:send', { content, type, replyTo: replyingTo?.id }, (res) => {
+      if (res && res.success) {
+        const formattedMsg = messageService.mapBackendMessageToFrontend(res.message);
+        setMessages((prev) => prev.map((m) => m.id === tempId ? formattedMsg : m));
+      } else {
+        // Handle failure
+        showToast('Message Failed', 'Could not send message. Please try again.', 'error');
+        setMessages((prev) => prev.map((m) => m.id === tempId ? { ...m, status: 'failed' as any } : m));
+      }
+    });
   }, [currentUser, partnerUser, replyingTo, showToast]);
 
   const deleteMessage = useCallback((id: string) => {
-    setMessages((prev) => prev.filter((m) => m.id !== id));
-    showToast('Message Deleted', 'The message was permanently removed from local chat.', 'system');
+    socketService.emit('message:delete', { messageId: id }, (res) => {
+      if (!res.success) {
+        showToast('Error', res.error || 'Failed to delete message', 'error');
+      }
+    });
   }, [showToast]);
 
   const togglePinMessage = useCallback((id: string) => {
@@ -216,23 +251,34 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const addReaction = useCallback((messageId: string, emoji: string) => {
     if (!currentUser) return;
+    
+    // Optimistic UI
     setMessages((prev) => prev.map((m) => {
       if (m.id !== messageId) return m;
-      const currentReactions = m.reactions || {};
+      const currentReactions = { ...(m.reactions || {}) };
       const existingUsers = currentReactions[emoji] || [];
       const updatedUsers = existingUsers.includes(currentUser.id)
         ? existingUsers.filter((u) => u !== currentUser.id)
         : [...existingUsers, currentUser.id];
 
-      const newReactions = { ...currentReactions, [emoji]: updatedUsers };
       if (updatedUsers.length === 0) {
-        delete newReactions[emoji];
+        delete currentReactions[emoji];
+      } else {
+        currentReactions[emoji] = updatedUsers;
       }
-      return { ...m, reactions: newReactions };
+      return { ...m, reactions: currentReactions };
     }));
-  }, [currentUser]);
+
+    socketService.emit('reaction:toggle', { messageId, emoji }, (res) => {
+      if (!res.success) {
+        showToast('Error', 'Failed to toggle reaction', 'error');
+        // Ideally revert optimistic UI here
+      }
+    });
+  }, [currentUser, showToast]);
 
   const clearChat = useCallback(() => {
+    // Local clear for privacy mode
     setMessages([]);
     showToast('Chat Cleared', 'All local chat history cleared.', 'system');
   }, [showToast]);
@@ -331,7 +377,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         partnerStatus,
         setPartnerStatus,
         isPartnerTyping,
-        setIsPartnerTyping,
+        setIsPartnerTyping: setPartnerTypingThrottled,
         activeCall,
         startCall,
         acceptCall,

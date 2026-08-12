@@ -2,6 +2,7 @@ import { createApp } from './app.js';
 import { connectDatabase } from './config/database.js';
 import { env } from './config/env.js';
 import http from 'node:http';
+import { setupSocket } from './socket.js';
 
 async function startServer() {
   try {
@@ -13,6 +14,9 @@ async function startServer() {
     
     // 3. Create HTTP Server (useful for future Socket.IO integration)
     const server = http.createServer(app);
+
+    // Initialize Socket.IO
+    setupSocket(server);
 
     // 4. Start listening
     server.listen(env.PORT, () => {

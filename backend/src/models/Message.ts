@@ -23,6 +23,7 @@ export interface IMessage extends Document {
   attachments: IAttachment[];
   replyTo: Types.ObjectId | null;
   reactions: IReaction[];
+  status: 'sending' | 'sent' | 'delivered' | 'read';
   isEdited: boolean;
   isDeleted: boolean;
   createdAt: Date;
@@ -82,6 +83,11 @@ const messageSchema = new Schema<IMessage>(
     reactions: {
       type: [reactionSchema],
       default: [],
+    },
+    status: {
+      type: String,
+      enum: ['sending', 'sent', 'delivered', 'read'],
+      default: 'sent',
     },
     isEdited: {
       type: Boolean,

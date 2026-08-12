@@ -288,6 +288,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
 
         {/* Message Timestamp & Status Footer */}
         <div className="flex items-center justify-end gap-1 mt-1.5 text-[10px] font-mono text-[#666666] select-none">
+          {message.isEdited && <span className="mr-1 italic">(edited)</span>}
           <span>{message.timestamp}</span>
           {isSelf && (
             <span>
