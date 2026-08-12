@@ -283,4 +283,6 @@ export function setupSocket(httpServer: HTTPServer) {
     });
 
   });
+
+  return io;
 }

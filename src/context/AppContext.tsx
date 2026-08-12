@@ -26,6 +26,7 @@ interface AppContextType {
   setPartnerUser: React.Dispatch<React.SetStateAction<User>>;
   messages: Message[];
   sendMessage: (content: string, type?: Message['type'], extra?: Partial<Message>) => void;
+  addMessage: (msg: Message) => void;
   deleteMessage: (id: string) => void;
   togglePinMessage: (id: string) => void;
   toggleStarMessage: (id: string) => void;
@@ -170,7 +171,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       socketService.on('message:new', (msg: any) => {
         const formattedMsg = messageService.mapBackendMessageToFrontend(msg);
-        setMessages(prev => [...prev, formattedMsg]);
+        setMessages(prev => {
+          if (prev.some(m => m.id === formattedMsg.id)) return prev;
+          if (formattedMsg.senderId === currentUser.id) return prev;
+          return [...prev, formattedMsg];
+        });
         
         // If chat is open, mark as read
         socketService.emit('message:read', { messageId: msg._id });
@@ -255,6 +260,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
   }, [currentUser, partnerUser, replyingTo, showToast]);
 
+  const addMessage = useCallback((msg: Message) => {
+    setMessages((prev) => {
+      if (prev.some(m => m.id === msg.id)) return prev;
+      return [...prev, msg];
+    });
+  }, []);
+
   const deleteMessage = useCallback((id: string) => {
     socketService.emit('message:delete', { messageId: id }, (res) => {
       if (!res.success) {
@@ -336,6 +348,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setPartnerUser,
         messages,
         sendMessage,
+        addMessage,
         deleteMessage,
         togglePinMessage,
         toggleStarMessage,

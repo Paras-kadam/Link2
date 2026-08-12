@@ -33,7 +33,7 @@ export const messageService = {
       recipientId: msg.senderId, // mock recipient id since it's 2 user only
       content: msg.content,
       type: msg.messageType,
-      mediaUrl: msg.attachments?.[0]?.url,
+      mediaUrl: msg.attachments?.[0]?.url ? (msg.attachments[0].url.startsWith('http') ? msg.attachments[0].url : `${API_URL.replace('/api', '')}${msg.attachments[0].url}`) : undefined,
       fileName: msg.attachments?.[0]?.name,
       fileSize: msg.attachments?.[0]?.size ? `${(msg.attachments[0].size / 1024 / 1024).toFixed(1)} MB` : undefined,
       replyTo: msg.replyTo ? {

@@ -1,15 +1,17 @@
 import React, { useState, useRef } from 'react';
-import { Paperclip, Smile, Mic, Send, Image as ImageIcon, FileText, X } from 'lucide-react';
+import { Paperclip, Smile, Mic, Send, Image as ImageIcon, FileText, X, Video } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { VoiceRecorderModal } from './VoiceRecorderModal';
 
 export const MessageInput: React.FC = () => {
-  const { sendMessage, replyingTo, setReplyingTo, showToast, setIsPartnerTyping } = useApp();
+  const { sendMessage, replyingTo, setReplyingTo, showToast, setIsPartnerTyping, addMessage } = useApp();
   const [text, setText] = useState('');
   const [showAttachMenu, setShowAttachMenu] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showVoiceModal, setShowVoiceModal] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
   const emojiList = ['😊', '❤️', '🔥', '👍', '🔐', '✨', '🚀', '🎉', '💡', '😎', '💬', '🙌'];
 
@@ -33,29 +35,48 @@ export const MessageInput: React.FC = () => {
     }
   };
 
-  const handleAttachImage = () => {
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
     setShowAttachMenu(false);
-    const sampleImages = [
-      'https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=1200&q=80',
-      'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1200&q=80',
-      'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=1200&q=80',
-    ];
-    const randomImg = sampleImages[Math.floor(Math.random() * sampleImages.length)];
-    sendMessage('Encrypted photo attachment', 'image', { mediaUrl: randomImg });
-    showToast('Photo Uploaded', 'Encrypted image sent.', 'message');
+    setUploadProgress(0);
+
+    const tempId = `upload_${Date.now()}`;
+    // Show a toast for progress instead of a fake message to avoid complex state management
+    showToast('Uploading...', `Starting upload for ${file.name}`, 'info');
+    
+    try {
+      const { message } = await import('../../services/fileService').then(m => 
+        m.fileService.uploadFile(file, (progress) => {
+          setUploadProgress(progress);
+        })
+      );
+      
+      const { messageService } = await import('../../services/messageService');
+      const formatted = messageService.mapBackendMessageToFrontend(message);
+      addMessage(formatted);
+      showToast('Upload Complete', 'File successfully sent', 'success');
+    } catch (err: any) {
+      showToast('Upload Failed', err.message, 'error');
+    } finally {
+      setUploadProgress(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
   };
 
-  const handleAttachFile = () => {
-    setShowAttachMenu(false);
-    const sampleFiles = [
-      { name: 'Security_Audit_2026.pdf', size: '3.8 MB' },
-      { name: 'System_Diagram_v1.zip', size: '12.4 MB' },
-      { name: 'API_Contracts_Draft.docx', size: '840 KB' },
-    ];
-    const randomFile = sampleFiles[Math.floor(Math.random() * sampleFiles.length)];
-    sendMessage(randomFile.name, 'file', { fileName: randomFile.name, fileSize: randomFile.size });
-    showToast('Document Shared', `Sent ${randomFile.name}`, 'message');
+  const openFilePicker = (accept: string) => {
+    if (fileInputRef.current) {
+      fileInputRef.current.accept = accept;
+      fileInputRef.current.click();
+    }
   };
+
+  const handleAttachImage = () => openFilePicker('image/*');
+  const handleAttachFile = () => openFilePicker('*/*');
+
+
+  // Add the file input element in the render
 
   return (
     <div className="relative bg-[#0A0A0A] border-t border-[#1C1C1C] p-2.5 md:p-4 z-10 select-none pb-safe shrink-0">
@@ -88,6 +109,14 @@ export const MessageInput: React.FC = () => {
           >
             <ImageIcon className="w-4 h-4 text-[#666666]" />
             <span>SEND PHOTO</span>
+          </button>
+
+          <button
+            onClick={() => openFilePicker('video/*')}
+            className="flex items-center gap-2.5 p-2 rounded hover:bg-[#151515] text-[#a0a0a0] hover:text-[#f2f2f2] transition-colors text-left"
+          >
+            <Video className="w-4 h-4 text-[#666666]" />
+            <span>SEND VIDEO</span>
           </button>
 
           <button
@@ -130,6 +159,13 @@ export const MessageInput: React.FC = () => {
       )}
 
       {/* Main Input Form */}
+      <input 
+        type="file" 
+        ref={fileInputRef} 
+        onChange={handleFileSelect} 
+        className="hidden" 
+      />
+      
       <div className="flex items-end gap-2">
         {/* Attach Button */}
         <button
@@ -182,7 +218,11 @@ export const MessageInput: React.FC = () => {
         </div>
 
         {/* Send or Voice Record Button */}
-        {text.trim() ? (
+        {uploadProgress !== null ? (
+          <div className="w-11 h-11 min-h-[44px] min-w-[44px] rounded bg-[#161616] border border-[#262626] text-[#666666] flex flex-col items-center justify-center text-[8px] font-mono shrink-0">
+            <span>{uploadProgress}%</span>
+          </div>
+        ) : text.trim() ? (
           <button
             onClick={handleSend}
             className="w-11 h-11 min-h-[44px] min-w-[44px] rounded bg-[#161616] hover:bg-[#151515] border border-[#262626] text-[#f2f2f2] flex items-center justify-center transition-colors shrink-0"

@@ -212,6 +212,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
               <img
                 src={message.mediaUrl}
                 alt="Shared Image"
+                crossOrigin="use-credentials"
                 className="w-full h-auto max-h-64 object-cover cursor-pointer hover:opacity-90 transition-opacity"
                 onClick={() => message.mediaUrl && setActiveLightboxImage(message.mediaUrl)}
               />
@@ -225,42 +226,64 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
           </div>
         )}
 
-        {/* 3. Voice Note Content */}
-        {message.type === 'voice' && (
-          <div className="flex items-center gap-3 min-w-[200px] py-1">
-            <button
-              onClick={toggleAudio}
-              className="p-2 rounded bg-[#101010] hover:bg-[#151515] border border-[#1C1C1C] text-[#f2f2f2] transition-colors"
-            >
-              {isPlayingAudio ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
-            </button>
-
-            <div className="flex-1 flex flex-col gap-1">
-              <div className="flex items-center gap-1 h-4">
-                {[40, 70, 30, 90, 50, 80, 40, 100, 60, 30, 80, 50, 90].map((h, i) => (
-                  <div
-                    key={i}
-                    style={{ height: isPlayingAudio ? `${Math.random() * 80 + 20}%` : `${h}%` }}
-                    className="w-1 rounded-full bg-[#666666] transition-all duration-300"
-                  />
-                ))}
-              </div>
-              <div className="flex items-center justify-between text-[10px] font-mono text-[#666666]">
-                <span>{message.audioDuration || '0:18'}</span>
-                <button
-                  onClick={() =>
-                    setAudioSpeed((prev) => (prev === '1.0x' ? '1.5x' : prev === '1.5x' ? '2.0x' : '1.0x'))
-                  }
-                  className="px-1 bg-[#0A0A0A] rounded border border-[#1C1C1C]"
-                >
-                  {audioSpeed}
-                </button>
-              </div>
+        {/* 3. Video Content */}
+        {message.type === 'video' && (
+          <div className="flex flex-col gap-2">
+            {message.content && <p className="mb-1">{message.content}</p>}
+            <div className="relative overflow-hidden rounded border border-[#1C1C1C] max-w-sm bg-[#050505]">
+              <video
+                src={message.mediaUrl}
+                controls
+                crossOrigin="use-credentials"
+                className="w-full h-auto max-h-64 object-contain"
+                preload="metadata"
+              />
             </div>
           </div>
         )}
 
-        {/* 4. File Attachment Content */}
+        {/* 4. Voice / Audio Content */}
+        {message.type === 'voice' && (
+          <div className="flex items-center gap-3 min-w-[200px] py-1">
+            {message.mediaUrl ? (
+              <audio src={message.mediaUrl} controls crossOrigin="use-credentials" className="h-8 w-[200px]" />
+            ) : (
+              // Fallback mockup for old mock messages without actual mediaUrl
+              <>
+                <button
+                  onClick={toggleAudio}
+                  className="p-2 rounded bg-[#101010] hover:bg-[#151515] border border-[#1C1C1C] text-[#f2f2f2] transition-colors"
+                >
+                  {isPlayingAudio ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
+                </button>
+                <div className="flex-1 flex flex-col gap-1">
+                  <div className="flex items-center gap-1 h-4">
+                    {[40, 70, 30, 90, 50, 80, 40, 100, 60, 30, 80, 50, 90].map((h, i) => (
+                      <div
+                        key={i}
+                        style={{ height: isPlayingAudio ? `${Math.random() * 80 + 20}%` : `${h}%` }}
+                        className="w-1 rounded-full bg-[#666666] transition-all duration-300"
+                      />
+                    ))}
+                  </div>
+                  <div className="flex items-center justify-between text-[10px] font-mono text-[#666666]">
+                    <span>{message.audioDuration || '0:18'}</span>
+                    <button
+                      onClick={() =>
+                        setAudioSpeed((prev) => (prev === '1.0x' ? '1.5x' : prev === '1.5x' ? '2.0x' : '1.0x'))
+                      }
+                      className="px-1 bg-[#0A0A0A] rounded border border-[#1C1C1C]"
+                    >
+                      {audioSpeed}
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* 5. File Attachment Content */}
         {message.type === 'file' && (
           <div className="flex items-center gap-3 p-2 rounded bg-[#050505] border border-[#1C1C1C] max-w-xs">
             <FileText className="w-5 h-5 text-[#a0a0a0] shrink-0" />
@@ -269,20 +292,34 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
                 {message.fileName || message.content}
               </h5>
               <span className="text-[10px] font-mono text-[#666666]">
-                {message.fileSize || '2.4 MB'}
+                {message.fileSize || 'Unknown Size'}
               </span>
             </div>
-            <a
-              href="#"
-              onClick={(e) => {
-                e.preventDefault();
-                showToast('Downloading File', `Saved ${message.fileName || 'document'}`, 'info');
-              }}
-              className="p-1.5 rounded text-[#666666] hover:text-[#f2f2f2] hover:bg-[#101010] transition-colors"
-              title="Download File"
-            >
-              <Download className="w-4 h-4" />
-            </a>
+            <div className="flex items-center gap-1 shrink-0">
+              {message.mediaUrl && (
+                <a
+                  href={message.mediaUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-2 py-1 mr-1 bg-[#151515] hover:bg-[#202020] border border-[#262626] rounded text-[#a0a0a0] hover:text-[#f2f2f2] text-[10px] font-bold tracking-wider transition-colors"
+                >
+                  OPEN
+                </a>
+              )}
+              <a
+                href={message.mediaUrl || '#'}
+                download={message.fileName || 'document'}
+                target="_blank"
+                rel="noreferrer"
+                onClick={() => {
+                  showToast('Downloading File', `Saved ${message.fileName || 'document'}`, 'info');
+                }}
+                className="p-1.5 rounded text-[#666666] hover:text-[#f2f2f2] hover:bg-[#101010] transition-colors"
+                title="Download File"
+              >
+                <Download className="w-4 h-4" />
+              </a>
+            </div>
           </div>
         )}
 

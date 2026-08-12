@@ -16,7 +16,8 @@ async function startServer() {
     const server = http.createServer(app);
 
     // Initialize Socket.IO
-    setupSocket(server);
+    const io = setupSocket(server);
+    app.set('io', io);
 
     // 4. Start listening
     server.listen(env.PORT, () => {
