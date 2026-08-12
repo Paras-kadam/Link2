@@ -1,0 +1,31 @@
+{
+  "name": "link2-backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Link2 — Private two-person communication backend",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.5.0",
+    "express": "^5.1.0",
+    "express-rate-limit": "^7.5.0",
+    "helmet": "^8.1.0",
+    "mongoose": "^8.14.3",
+    "morgan": "^1.10.0",
+    "zod": "^3.25.36"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.3",
+    "@types/morgan": "^1.9.9",
+    "@types/node": "^24.13.3",
+    "tsx": "^4.21.0",
+    "typescript": "~5.8.3"
+  }
+}
