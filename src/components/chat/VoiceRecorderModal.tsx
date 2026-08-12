@@ -35,20 +35,19 @@ export const VoiceRecorderModal: React.FC<VoiceRecorderModalProps> = ({ onClose 
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-4 select-none">
-      <div className="glass-panel w-full max-w-md p-6 rounded-3xl border border-slate-800 shadow-2xl flex flex-col items-center text-center relative overflow-hidden animate-scale-up">
-        {/* Glow effect */}
-        <div className="w-24 h-24 rounded-full bg-purple-600/20 absolute -top-10 -right-10 blur-2xl pointer-events-none" />
-
-        <div className="w-16 h-16 rounded-full bg-purple-600/20 text-purple-400 border border-purple-500/30 flex items-center justify-center mb-4 animate-pulse-glow">
-          <Mic className="w-8 h-8" />
+    <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 select-none font-mono">
+      <div className="w-full max-w-md p-6 rounded bg-[#0A0A0A] border border-[#1C1C1C] flex flex-col items-center text-center">
+        <div className="w-14 h-14 rounded bg-[#101010] border border-[#1C1C1C] flex items-center justify-center mb-4 text-[#f2f2f2]">
+          <Mic className="w-7 h-7" />
         </div>
 
-        <h3 className="text-lg font-bold text-slate-100">Recording Voice Note</h3>
-        <p className="text-xs text-slate-400 mt-1">End-to-End Encrypted Audio</p>
+        <h3 className="text-sm font-bold text-[#f2f2f2] uppercase tracking-wider">
+          RECORDING VOICE NOTE
+        </h3>
+        <p className="text-[11px] text-[#666666] mt-1">End-to-End Encrypted Audio</p>
 
-        {/* Dynamic Waveform Visualizer */}
-        <div className="flex items-center gap-1.5 h-16 my-6">
+        {/* Waveform Visualizer */}
+        <div className="flex items-center gap-1 h-12 my-5">
           {[40, 80, 20, 100, 60, 90, 30, 70, 100, 50, 80, 40, 90, 60, 100, 30, 80].map((_, idx) => (
             <div
               key={idx}
@@ -56,28 +55,28 @@ export const VoiceRecorderModal: React.FC<VoiceRecorderModalProps> = ({ onClose 
                 height: `${Math.random() * 80 + 20}%`,
                 animationDelay: `${idx * 0.08}s`,
               }}
-              className="w-1.5 rounded-full bg-gradient-to-t from-purple-600 to-cyan-400 animate-pulse"
+              className="w-1 rounded-full bg-[#a0a0a0] animate-pulse"
             />
           ))}
         </div>
 
-        <div className="text-2xl font-mono font-bold text-slate-100 mb-6 tracking-wider">
+        <div className="text-xl font-mono font-bold text-[#f2f2f2] mb-5 tracking-widest">
           {formatTime(seconds)}
         </div>
 
         {/* Controls */}
-        <div className="flex items-center gap-4 w-full">
+        <div className="flex items-center gap-3 w-full">
           <button
             onClick={onClose}
-            className="flex-1 py-3 rounded-2xl bg-slate-800/80 hover:bg-slate-700/80 text-rose-400 text-xs font-semibold border border-slate-700 transition-all flex items-center justify-center gap-2"
+            className="flex-1 py-2.5 rounded bg-[#101010] border border-[#1C1C1C] text-rose-400 text-xs font-mono hover:bg-[#151515] transition-colors flex items-center justify-center gap-2"
           >
-            <Trash2 className="w-4 h-4" /> Cancel
+            <Trash2 className="w-4 h-4" /> CANCEL
           </button>
           <button
             onClick={handleSend}
-            className="flex-1 py-3 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-semibold shadow-lg shadow-purple-600/30 transition-all flex items-center justify-center gap-2"
+            className="flex-1 py-2.5 rounded bg-[#161616] border border-[#262626] text-[#f2f2f2] text-xs font-mono hover:bg-[#151515] transition-colors flex items-center justify-center gap-2"
           >
-            <Send className="w-4 h-4" /> Send Voice Note
+            <Send className="w-4 h-4" /> SEND NOTE
           </button>
         </div>
       </div>
