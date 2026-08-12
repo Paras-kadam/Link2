@@ -3,7 +3,21 @@ import { Mic, MicOff, Video, VideoOff, PhoneOff, Shield } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
 export const VideoCallModal: React.FC = () => {
-  const { activeCall, endCall, toggleMuteCall, toggleVideoCall, partnerUser, currentUser } = useApp();
+  const { activeCall, endCall, toggleMuteCall, toggleVideoCall, partnerUser, currentUser, localStream, remoteStream, cancelCall } = useApp();
+  const localVideoRef = React.useRef<HTMLVideoElement>(null);
+  const remoteVideoRef = React.useRef<HTMLVideoElement>(null);
+
+  React.useEffect(() => {
+    if (localVideoRef.current && localStream) {
+      localVideoRef.current.srcObject = localStream;
+    }
+  }, [localStream]);
+
+  React.useEffect(() => {
+    if (remoteVideoRef.current && remoteStream) {
+      remoteVideoRef.current.srcObject = remoteStream;
+    }
+  }, [remoteStream]);
 
   if (!activeCall || activeCall.type !== 'video' || activeCall.state === 'incoming') {
     return null;
@@ -14,6 +28,21 @@ export const VideoCallModal: React.FC = () => {
     const remainder = sec % 60;
     return `${mins < 10 ? '0' : ''}${mins}:${remainder < 10 ? '0' : ''}${remainder}`;
   };
+
+  const getStatusText = () => {
+    switch (activeCall.state) {
+      case 'calling': return 'CALLING...';
+      case 'ringing': return 'RINGING...';
+      case 'connecting': return 'CONNECTING...';
+      case 'reconnecting': return 'RECONNECTING...';
+      case 'rejected': return 'DECLINED';
+      case 'busy': return 'BUSY';
+      case 'failed': return 'FAILED';
+      default: return null;
+    }
+  };
+
+  const statusText = getStatusText();
 
   return (
     <div className="fixed inset-0 z-50 bg-[#050505] flex flex-col justify-between p-4 md:p-6 select-none font-mono">
@@ -34,8 +63,8 @@ export const VideoCallModal: React.FC = () => {
         </div>
 
         <div className="text-xs text-[#a0a0a0]">
-          {activeCall.state === 'calling' ? (
-            <span className="animate-pulse">CONNECTING...</span>
+          {statusText ? (
+            <span className="animate-pulse">{statusText}</span>
           ) : (
             <span>{formatDuration(activeCall.durationSeconds)}</span>
           )}
@@ -45,10 +74,11 @@ export const VideoCallModal: React.FC = () => {
       {/* Main Video Screen Container */}
       <div className="relative flex-1 my-3 bg-[#0A0A0A] rounded border border-[#1C1C1C] overflow-hidden flex items-center justify-center">
         {/* Remote Partner Feed */}
-        {activeCall.isVideoOn ? (
-          <img
-            src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=1200&q=80"
-            alt="Partner Video Feed"
+        {remoteStream ? (
+          <video
+            ref={remoteVideoRef}
+            autoPlay
+            playsInline
             className="w-full h-full object-cover"
           />
         ) : (
@@ -56,19 +86,33 @@ export const VideoCallModal: React.FC = () => {
             <img
               src={partnerUser.avatar}
               alt={partnerUser.name}
-              className="w-24 h-24 rounded object-cover border border-[#1C1C1C]"
+              className="w-24 h-24 rounded object-cover border border-[#1C1C1C] mb-4"
             />
-            <span className="text-xs text-[#666666]">Partner Video Off</span>
+            {statusText ? (
+               <span className="text-xs text-[#a0a0a0] animate-pulse">{statusText}</span>
+            ) : (
+               <span className="text-xs text-[#666666]">Waiting for video...</span>
+            )}
           </div>
         )}
 
         {/* Local Self PIP Video Feed */}
-        <div className="absolute bottom-4 right-4 w-28 h-36 md:w-36 md:h-48 bg-[#050505] rounded border border-[#1C1C1C] overflow-hidden shadow-lg">
-          <img
-            src={currentUser?.avatar}
-            alt="My Video Feed"
-            className="w-full h-full object-cover"
-          />
+        <div className="absolute bottom-4 right-4 w-28 h-36 md:w-36 md:h-48 bg-[#050505] rounded border border-[#1C1C1C] overflow-hidden shadow-lg z-10 flex items-center justify-center">
+          {activeCall.isVideoOn && localStream ? (
+            <video
+              ref={localVideoRef}
+              autoPlay
+              playsInline
+              muted
+              className="w-full h-full object-cover -scale-x-100"
+            />
+          ) : (
+            <img
+              src={currentUser?.avatar}
+              alt="My Video Feed"
+              className="w-full h-full object-cover"
+            />
+          )}
           <div className="absolute bottom-1 left-1 px-1 py-0.5 bg-[#050505]/80 text-[9px] text-[#a0a0a0] rounded border border-[#1C1C1C]">
             YOU
           </div>
@@ -102,9 +146,9 @@ export const VideoCallModal: React.FC = () => {
         </button>
 
         <button
-          onClick={endCall}
+          onClick={activeCall.state === 'calling' ? cancelCall : endCall}
           className="p-3 rounded bg-rose-950/60 border border-rose-800 text-rose-200 hover:bg-rose-900 transition-colors"
-          title="End Video Call"
+          title={activeCall.state === 'calling' ? 'Cancel Call' : 'End Video Call'}
         >
           <PhoneOff className="w-5 h-5" />
         </button>

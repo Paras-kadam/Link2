@@ -12,6 +12,7 @@ import { partnerUser as defaultPartnerUser, initialNotifications } from '../mock
 import { authService } from '../services/authService';
 import { socketService } from '../services/socketService';
 import { messageService } from '../services/messageService';
+import { useWebRTC } from '../hooks/useWebRTC';
 
 interface AppContextType {
   // Auth state
@@ -35,12 +36,15 @@ interface AppContextType {
   isPartnerTyping: boolean;
   setIsPartnerTyping: (typing: boolean) => void;
   activeCall: CallSession | null;
+  localStream: MediaStream | null;
+  remoteStream: MediaStream | null;
   startCall: (type: 'voice' | 'video') => void;
   acceptCall: () => void;
+  rejectCall: () => void;
+  cancelCall: () => void;
   endCall: () => void;
   toggleMuteCall: () => void;
   toggleVideoCall: () => void;
-  simulateIncomingCall: (type: 'voice' | 'video') => void;
   activeDrawer: 'none' | 'media' | 'profile' | 'settings' | 'privacy' | 'search' | 'notifications';
   setActiveDrawer: (drawer: 'none' | 'media' | 'profile' | 'settings' | 'privacy' | 'search' | 'notifications') => void;
   activeLightboxImage: string | null;
@@ -74,7 +78,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [messages, setMessages] = useState<Message[]>([]);
   const [partnerStatus, setPartnerStatus] = useState<UserStatus>('offline');
   const [isPartnerTyping, setIsPartnerTyping] = useState<boolean>(false);
-  const [activeCall, setActiveCall] = useState<CallSession | null>(null);
   const [activeDrawer, setActiveDrawer] = useState<'none' | 'media' | 'profile' | 'settings' | 'privacy' | 'search' | 'notifications'>('none');
   const [activeLightboxImage, setActiveLightboxImage] = useState<string | null>(null);
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
@@ -104,12 +107,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const closeToast = useCallback(() => setActiveToast(null), []);
 
+  const {
+    activeCall,
+    localStream,
+    remoteStream,
+    startCall,
+    acceptCall,
+    rejectCall,
+    cancelCall,
+    endCall: webRTCEndCall,
+    toggleMute: toggleMuteCall,
+    toggleVideo: toggleVideoCall,
+  } = useWebRTC(isAuthenticated, showToast);
+
   // Initialize Auth
   useEffect(() => {
     const initAuth = async () => {
       try {
-        const { user } = await authService.getCurrentUser();
+        const { user, partner } = await authService.getCurrentUser();
         setCurrentUser(user);
+        if (partner) {
+          setPartnerUser(partner);
+        }
         setIsAuthenticated(true);
       } catch (err) {
         setIsAuthenticated(false);
@@ -179,8 +198,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [isAuthenticated, currentUser]);
 
   const handleLogin = async (email: string, pass: string) => {
-    const { user } = await authService.login(email, pass);
+    const { user, partner } = await authService.login(email, pass);
     setCurrentUser(user);
+    if (partner) {
+      setPartnerUser(partner);
+    }
     setIsAuthenticated(true);
   };
 
@@ -283,64 +305,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     showToast('Chat Cleared', 'All local chat history cleared.', 'system');
   }, [showToast]);
 
-  const startCall = useCallback((type: 'voice' | 'video') => {
-    setActiveCall({
-      id: `call_${Date.now()}`,
-      type,
-      state: 'calling',
-      durationSeconds: 0,
-      isMuted: false,
-      isVideoOn: type === 'video',
-      isSpeakerOn: true,
-    });
-
-    // Simulate partner picking up after 2.5 seconds
-    setTimeout(() => {
-      setActiveCall((prev) => prev ? { ...prev, state: 'connected', startTime: Date.now() } : null);
-      showToast(`${type === 'voice' ? 'Voice' : 'Video'} Call Connected`, `Talking with ${partnerUser.name}`, 'call');
-    }, 2500);
-  }, [partnerUser, showToast]);
-
-  const simulateIncomingCall = useCallback((type: 'voice' | 'video') => {
-    setActiveCall({
-      id: `call_inc_${Date.now()}`,
-      type,
-      state: 'incoming',
-      durationSeconds: 0,
-      isMuted: false,
-      isVideoOn: type === 'video',
-    });
-    showToast(`Incoming ${type === 'voice' ? 'Voice' : 'Video'} Call`, `${partnerUser.name} is calling...`, 'call');
-  }, [partnerUser, showToast]);
-
-  const acceptCall = useCallback(() => {
-    setActiveCall((prev) => prev ? { ...prev, state: 'connected', startTime: Date.now() } : null);
-  }, []);
-
   const endCall = useCallback(() => {
-    if (activeCall && currentUser) {
-      const durationStr = `${Math.floor(activeCall.durationSeconds / 60)}m ${activeCall.durationSeconds % 60}s`;
-      const callLogMsg: Message = {
-        id: `msg_call_${Date.now()}`,
-        senderId: currentUser.id,
-        recipientId: partnerUser.id,
-        type: 'call_log',
-        content: `${activeCall.type === 'voice' ? 'Voice' : 'Video'} Call Ended (${durationStr})`,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        status: 'read',
-      };
-      setMessages((prev) => [...prev, callLogMsg]);
-    }
-    setActiveCall(null);
-  }, [activeCall, currentUser, partnerUser]);
-
-  const toggleMuteCall = useCallback(() => {
-    setActiveCall((prev) => prev ? { ...prev, isMuted: !prev.isMuted } : null);
-  }, []);
-
-  const toggleVideoCall = useCallback(() => {
-    setActiveCall((prev) => prev ? { ...prev, isVideoOn: !prev.isVideoOn } : null);
-  }, []);
+    webRTCEndCall();
+  }, [webRTCEndCall]);
 
   const updatePrivacySettings = useCallback((settings: Partial<PrivacySettings>) => {
     setPrivacySettings((prev) => ({ ...prev, ...settings }));
@@ -379,12 +346,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         isPartnerTyping,
         setIsPartnerTyping: setPartnerTypingThrottled,
         activeCall,
+        localStream,
+        remoteStream,
         startCall,
         acceptCall,
+        rejectCall,
+        cancelCall,
         endCall,
         toggleMuteCall,
         toggleVideoCall,
-        simulateIncomingCall,
         activeDrawer,
         setActiveDrawer,
         activeLightboxImage,

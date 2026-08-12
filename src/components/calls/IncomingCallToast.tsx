@@ -3,7 +3,7 @@ import { Phone, Video, PhoneOff } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
 export const IncomingCallToast: React.FC = () => {
-  const { activeCall, acceptCall, endCall, partnerUser } = useApp();
+  const { activeCall, acceptCall, rejectCall, partnerUser } = useApp();
 
   if (!activeCall || activeCall.state !== 'incoming') {
     return null;
@@ -30,7 +30,7 @@ export const IncomingCallToast: React.FC = () => {
 
       <div className="flex items-center gap-2 mt-4">
         <button
-          onClick={endCall}
+          onClick={rejectCall}
           className="flex-1 py-2 rounded bg-rose-950/40 border border-rose-800 text-rose-300 text-xs font-semibold hover:bg-rose-900/60 transition-colors flex items-center justify-center gap-1.5"
         >
           <PhoneOff className="w-4 h-4" /> DECLINE

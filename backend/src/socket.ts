@@ -215,5 +215,72 @@ export function setupSocket(httpServer: HTTPServer) {
         if (callback) callback({ success: false, error: error.message });
       }
     });
+
+    // --- WebRTC Signaling Events ---
+
+    const emitToPartner = async (event: string, ...args: any[]) => {
+      console.log(`[CALL DEBUG] emitToPartner attempt for event: ${event}`);
+      console.log(`[CALL DEBUG] Current socket conversationId: ${socket.data.conversationId}`);
+      if (!socket.data.conversationId) {
+        console.log(`[CALL DEBUG] FAILED - no conversationId on socket`);
+        return;
+      }
+      const sockets = await io.in(socket.data.conversationId).fetchSockets();
+      console.log(`[CALL DEBUG] Sockets found in room ${socket.data.conversationId}: ${sockets.length}`);
+      
+      let emitted = false;
+      for (const s of sockets) {
+        console.log(`[CALL DEBUG] Checking socket: ${s.id} (userId: ${s.data.userId}) against caller userId: ${userId}`);
+        if (s.data.userId !== userId) {
+          console.log(`[CALL DEBUG] MATCH FOUND! Emitting ${event} to socket ${s.id}`);
+          s.emit(event, ...args);
+          emitted = true;
+        }
+      }
+      if (!emitted) {
+        console.log(`[CALL DEBUG] WARNING - Event ${event} was NOT emitted to any partner. Is partner connected?`);
+      }
+    };
+
+    socket.on('call:start', (payload) => {
+      console.log(`[CALL DEBUG] call:start received from ${userId} (socket: ${socket.id})`);
+      emitToPartner('call:incoming', {
+        callerId: userId,
+        type: payload.type,
+      });
+    });
+
+    socket.on('call:accept', () => {
+      emitToPartner('call:accept');
+    });
+
+    socket.on('call:reject', () => {
+      emitToPartner('call:reject');
+    });
+
+    socket.on('call:cancel', () => {
+      emitToPartner('call:cancel');
+    });
+
+    socket.on('call:end', () => {
+      emitToPartner('call:end');
+    });
+
+    socket.on('call:busy', () => {
+      emitToPartner('call:busy');
+    });
+
+    socket.on('webrtc:offer', (offer) => {
+      emitToPartner('webrtc:offer', offer);
+    });
+
+    socket.on('webrtc:answer', (answer) => {
+      emitToPartner('webrtc:answer', answer);
+    });
+
+    socket.on('webrtc:ice-candidate', (candidate) => {
+      emitToPartner('webrtc:ice-candidate', candidate);
+    });
+
   });
 }

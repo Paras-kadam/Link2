@@ -3,7 +3,14 @@ import { Mic, MicOff, PhoneOff, Video, Shield } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
 export const VoiceCallModal: React.FC = () => {
-  const { activeCall, endCall, toggleMuteCall, partnerUser, startCall } = useApp();
+  const { activeCall, endCall, toggleMuteCall, partnerUser, startCall, remoteStream, cancelCall } = useApp();
+  const audioRef = React.useRef<HTMLAudioElement>(null);
+
+  React.useEffect(() => {
+    if (audioRef.current && remoteStream) {
+      audioRef.current.srcObject = remoteStream;
+    }
+  }, [remoteStream]);
 
   if (!activeCall || activeCall.type !== 'voice' || activeCall.state === 'incoming') {
     return null;
@@ -15,8 +22,24 @@ export const VoiceCallModal: React.FC = () => {
     return `${mins < 10 ? '0' : ''}${mins}:${remainder < 10 ? '0' : ''}${remainder}`;
   };
 
+  const getStatusText = () => {
+    switch (activeCall.state) {
+      case 'calling': return 'CALLING...';
+      case 'ringing': return 'RINGING...';
+      case 'connecting': return 'CONNECTING...';
+      case 'reconnecting': return 'RECONNECTING...';
+      case 'rejected': return 'CALL DECLINED';
+      case 'busy': return 'USER BUSY';
+      case 'failed': return 'CALL FAILED';
+      default: return null;
+    }
+  };
+
+  const statusText = getStatusText();
+
   return (
     <div className="fixed inset-0 z-50 bg-[#050505] flex flex-col items-center justify-between p-6 md:p-10 select-none font-mono">
+      <audio ref={audioRef} autoPlay />
       {/* Top Header Bar */}
       <div className="flex items-center justify-between w-full max-w-md border-b border-[#1C1C1C] pb-4">
         <div className="flex items-center gap-2 text-xs text-[#a0a0a0]">
@@ -41,8 +64,8 @@ export const VoiceCallModal: React.FC = () => {
         <p className="text-xs text-[#666666] mt-1">{partnerUser.handle}</p>
 
         <div className="mt-4 px-3 py-1 rounded bg-[#0A0A0A] border border-[#1C1C1C] text-xs">
-          {activeCall.state === 'calling' ? (
-            <span className="text-[#a0a0a0] animate-pulse">CALLING...</span>
+          {statusText ? (
+            <span className="text-[#a0a0a0] animate-pulse">{statusText}</span>
           ) : (
             <span className="text-[#f2f2f2] font-mono tracking-widest text-sm">
               {formatDuration(activeCall.durationSeconds)}
@@ -80,9 +103,9 @@ export const VoiceCallModal: React.FC = () => {
 
         {/* End Call Button (Muted Red) */}
         <button
-          onClick={endCall}
+          onClick={activeCall.state === 'calling' ? cancelCall : endCall}
           className="p-3.5 rounded bg-rose-950/60 border border-rose-800 text-rose-200 hover:bg-rose-900 transition-colors"
-          title="End Voice Call"
+          title={activeCall.state === 'calling' ? 'Cancel Call' : 'End Voice Call'}
         >
           <PhoneOff className="w-5 h-5" />
         </button>

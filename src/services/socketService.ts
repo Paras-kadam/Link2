@@ -4,6 +4,7 @@ const SOCKET_URL = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.r
 
 class SocketService {
   private socket: Socket | null = null;
+  private queuedListeners: { event: string; callback: (...args: any[]) => void }[] = [];
   
   public connect() {
     if (!this.socket) {
@@ -25,6 +26,12 @@ class SocketService {
       this.socket.on('disconnect', (reason) => {
         console.log('[socket] Disconnected', reason);
       });
+
+      // Apply queued listeners
+      this.queuedListeners.forEach(({ event, callback }) => {
+        this.socket!.on(event, callback);
+      });
+      this.queuedListeners = [];
     }
   }
 
@@ -33,6 +40,7 @@ class SocketService {
       this.socket.disconnect();
       this.socket = null;
     }
+    this.queuedListeners = [];
   }
 
   public getSocket(): Socket | null {
@@ -42,12 +50,20 @@ class SocketService {
   public on(event: string, callback: (...args: any[]) => void) {
     if (this.socket) {
       this.socket.on(event, callback);
+    } else {
+      this.queuedListeners.push({ event, callback });
     }
   }
 
   public off(event: string, callback?: (...args: any[]) => void) {
     if (this.socket) {
       this.socket.off(event, callback);
+    } else {
+      if (callback) {
+        this.queuedListeners = this.queuedListeners.filter(l => l.event !== event || l.callback !== callback);
+      } else {
+        this.queuedListeners = this.queuedListeners.filter(l => l.event !== event);
+      }
     }
   }
 
@@ -58,6 +74,8 @@ class SocketService {
       } else {
         this.socket.emit(event, data);
       }
+    } else {
+      console.warn(`[socket] Attempted to emit ${event} before socket connected`);
     }
   }
 }

@@ -12,14 +12,14 @@ export const currentUser: User = {
 
 export const partnerUser: User = {
   id: 'usr_partner_202',
-  name: 'Elena Rostova',
-  handle: '@elena_r',
+  name: 'Partner User',
+  handle: '@partner',
   avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=400&q=80',
   status: 'online',
   lastSeen: 'Just now',
   bio: 'Design systems & security architecture. Private link active. ✨',
   encryptionFingerprint: 'F8C2-11D9-44A7-88E2-3310-AB99-04CD-AA77',
-  customNickname: 'Elena 💫',
+  customNickname: '',
 };
 
 export const initialMessages: Message[] = [
@@ -110,7 +110,7 @@ export const initialNotifications: AppNotification[] = [
   {
     id: 'notif_1',
     title: 'Security Sync',
-    message: 'Encryption fingerprint verified with Elena.',
+    message: 'Encryption fingerprint verified with Partner.',
     timestamp: '10:14 AM',
     read: true,
     type: 'security',
@@ -118,7 +118,7 @@ export const initialNotifications: AppNotification[] = [
   {
     id: 'notif_2',
     title: 'Missed Call',
-    message: 'Missed video call from Elena Rostova.',
+    message: 'Missed video call from Partner.',
     timestamp: '11:02 AM',
     read: false,
     type: 'call',

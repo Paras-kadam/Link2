@@ -54,7 +54,10 @@ export const loginUser = async (req: Request, res: Response, next: NextFunction)
     // Prepare safe user object (removing passwordHash)
     const userObject = user.toJSON();
 
-    sendSuccess(res, { user: userObject });
+    // Find partner (the one other user in the db)
+    const partner = await User.findOne({ _id: { $ne: user._id } });
+
+    sendSuccess(res, { user: userObject, partner: partner ? partner.toJSON() : null });
   } catch (error) {
     next(error);
   }
@@ -73,7 +76,11 @@ export const getCurrentUser = async (req: AuthRequest, res: Response, next: Next
   try {
     // req.user is guaranteed to exist because this route will use requireAuth middleware
     const user = req.user!;
-    sendSuccess(res, { user });
+    
+    // Find partner
+    const partner = await User.findOne({ _id: { $ne: user._id } });
+    
+    sendSuccess(res, { user, partner: partner ? partner.toJSON() : null });
   } catch (error) {
     next(error);
   }

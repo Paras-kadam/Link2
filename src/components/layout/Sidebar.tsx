@@ -5,10 +5,8 @@ import {
   ShieldCheck,
   Settings,
   Lock,
-  PhoneCall,
   User as UserIcon,
   Bell,
-  Activity,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
@@ -16,10 +14,6 @@ export const Sidebar: React.FC = () => {
   const {
     partnerUser,
     partnerStatus,
-    setPartnerStatus,
-    isPartnerTyping,
-    setIsPartnerTyping,
-    simulateIncomingCall,
     activeDrawer,
     setActiveDrawer,
     updatePrivacySettings,
@@ -108,53 +102,10 @@ export const Sidebar: React.FC = () => {
         </nav>
       </div>
 
-      {/* Bottom Controls / Simulation Tools */}
-      <div className="p-3 border-t border-[#1C1C1C] space-y-2 bg-[#050505]">
-        <div className="text-[10px] font-mono text-[#666666] uppercase tracking-wider px-1">
-          SIMULATION TOOLS
-        </div>
 
-        {/* Partner Status Simulation */}
-        <button
-          onClick={() => setPartnerStatus(partnerStatus === 'online' ? 'offline' : 'online')}
-          className="w-full flex items-center justify-between px-2.5 py-1.5 rounded bg-[#0A0A0A] border border-[#1C1C1C] text-[11px] font-mono text-[#a0a0a0] hover:text-[#f2f2f2] hover:bg-[#151515] transition-colors"
-        >
-          <span>PARTNER STATUS</span>
-          <span className={`text-[10px] ${partnerStatus === 'online' ? 'text-emerald-500' : 'text-[#666666]'}`}>
-            ● {partnerStatus.toUpperCase()}
-          </span>
-        </button>
-
-        {/* Partner Typing Simulation */}
-        <button
-          onClick={() => setIsPartnerTyping(!isPartnerTyping)}
-          className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded border text-[11px] font-mono transition-colors ${
-            isPartnerTyping
-              ? 'bg-[#161616] text-[#f2f2f2] border-[#666666]'
-              : 'bg-[#0A0A0A] border-[#1C1C1C] text-[#a0a0a0] hover:text-[#f2f2f2] hover:bg-[#151515]'
-          }`}
-        >
-          <span className="flex items-center gap-1.5">
-            <Activity className="w-3.5 h-3.5" />
-            <span>TYPING SIM</span>
-          </span>
-          <span className="text-[10px]">{isPartnerTyping ? 'ON' : 'OFF'}</span>
-        </button>
-
-        {/* Demo Incoming Call */}
-        <button
-          onClick={() => simulateIncomingCall('video')}
-          className="w-full flex items-center justify-between px-2.5 py-1.5 rounded bg-[#0A0A0A] border border-[#1C1C1C] text-[11px] font-mono text-[#a0a0a0] hover:text-[#f2f2f2] hover:bg-[#151515] transition-colors"
-        >
-          <span className="flex items-center gap-1.5">
-            <PhoneCall className="w-3.5 h-3.5" />
-            <span>TEST CALL</span>
-          </span>
-          <span className="text-[10px]">TRIGGER</span>
-        </button>
-
-        {/* Quick App Lock */}
-        <div className="flex flex-col gap-2 mt-2">
+      {/* Bottom Controls */}
+      <div className="p-3 border-t border-[#1C1C1C] bg-[#050505]">
+        <div className="flex flex-col gap-2">
           <button
             onClick={() => updatePrivacySettings({ isAppLocked: true })}
             className="w-full flex items-center justify-center gap-2 px-2.5 py-2 rounded bg-[#101010] border border-[#1C1C1C] text-xs font-mono text-[#f2f2f2] hover:bg-[#151515] transition-colors"

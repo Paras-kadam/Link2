@@ -45,7 +45,7 @@ export interface Message {
 }
 
 export type CallType = 'voice' | 'video';
-export type CallState = 'idle' | 'calling' | 'incoming' | 'connected' | 'ended';
+export type CallState = 'idle' | 'calling' | 'incoming' | 'ringing' | 'connecting' | 'connected' | 'reconnecting' | 'rejected' | 'busy' | 'failed' | 'ended';
 
 export interface CallSession {
   id: string;
