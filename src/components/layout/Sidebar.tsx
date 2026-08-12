@@ -154,13 +154,22 @@ export const Sidebar: React.FC = () => {
         </button>
 
         {/* Quick App Lock */}
-        <button
-          onClick={() => updatePrivacySettings({ isAppLocked: true })}
-          className="w-full flex items-center justify-center gap-2 px-2.5 py-2 rounded bg-[#101010] border border-[#1C1C1C] text-xs font-mono text-[#f2f2f2] hover:bg-[#151515] transition-colors mt-2"
-        >
-          <Lock className="w-3.5 h-3.5 text-[#a0a0a0]" />
-          <span>LOCK TERMINAL</span>
-        </button>
+        <div className="flex flex-col gap-2 mt-2">
+          <button
+            onClick={() => updatePrivacySettings({ isAppLocked: true })}
+            className="w-full flex items-center justify-center gap-2 px-2.5 py-2 rounded bg-[#101010] border border-[#1C1C1C] text-xs font-mono text-[#f2f2f2] hover:bg-[#151515] transition-colors"
+          >
+            <Lock className="w-3.5 h-3.5 text-[#a0a0a0]" />
+            <span>LOCK TERMINAL</span>
+          </button>
+          
+          <button
+            onClick={() => useApp().handleLogout()}
+            className="w-full flex items-center justify-center gap-2 px-2.5 py-2 rounded bg-transparent border border-rose-900/50 text-xs font-mono text-rose-500 hover:bg-rose-950/20 transition-colors"
+          >
+            <span>LOGOUT</span>
+          </button>
+        </div>
       </div>
     </aside>
   );

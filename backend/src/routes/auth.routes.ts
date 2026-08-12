@@ -1,12 +1,23 @@
 import { Router } from 'express';
-import { registerUser, loginUser, getCurrentUser } from '../controllers/auth.controller.js';
+import rateLimit from 'express-rate-limit';
+import { loginUser, logoutUser, getCurrentUser } from '../controllers/auth.controller.js';
 import { validate } from '../middleware/validate.js';
-import { createUserSchema } from '../validators/user.validator.js';
+import { requireAuth } from '../middleware/auth.js';
+import { loginUserSchema } from '../validators/user.validator.js';
 
 const router = Router();
 
-router.post('/register', validate(createUserSchema), registerUser);
-router.post('/login', loginUser);
-router.get('/me', getCurrentUser);
+// Stricter rate limiting for login attempts
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  limit: 10, // Limit each IP to 10 login requests per window
+  message: { success: false, message: 'Too many login attempts, please try again later.' },
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+});
+
+router.post('/login', loginLimiter, validate(loginUserSchema), loginUser);
+router.post('/logout', logoutUser);
+router.get('/me', requireAuth, getCurrentUser);
 
 export default router;

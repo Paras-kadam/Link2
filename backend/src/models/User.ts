@@ -8,7 +8,9 @@ export interface IUser extends Document {
   profileImage: string;
   bio: string;
   status: 'online' | 'offline' | 'away' | 'dnd';
+  isActive: boolean;
   lastSeen: Date;
+  lastLoginAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -56,9 +58,16 @@ const userSchema = new Schema<IUser>(
       enum: ['online', 'offline', 'away', 'dnd'],
       default: 'offline',
     },
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
     lastSeen: {
       type: Date,
       default: Date.now,
+    },
+    lastLoginAt: {
+      type: Date,
     },
   },
   {

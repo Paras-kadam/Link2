@@ -17,7 +17,8 @@ import { VoiceCallModal } from './components/calls/VoiceCallModal';
 import { VideoCallModal } from './components/calls/VideoCallModal';
 import { IncomingCallToast } from './components/calls/IncomingCallToast';
 import { ImageViewerModal } from './components/media/ImageViewerModal';
-import { MessageSquare, Image as ImageIcon, User, ShieldCheck, Bell, Settings, Lock, X } from 'lucide-react';
+import { MessageSquare, Image as ImageIcon, User, ShieldCheck, Bell, Settings, Lock, X, Loader2 } from 'lucide-react';
+import { Login } from './components/auth/Login';
 
 export const MainAppContent: React.FC = () => {
   const { activeDrawer, setActiveDrawer, updatePrivacySettings, notifications } = useApp();
@@ -91,16 +92,27 @@ export const MainAppContent: React.FC = () => {
               </nav>
             </div>
 
-            <button
-              onClick={() => {
-                setMobileMenuOpen(false);
-                updatePrivacySettings({ isAppLocked: true });
-              }}
-              className="w-full py-2.5 rounded bg-[#101010] border border-[#1C1C1C] text-xs font-mono text-[#f2f2f2] flex items-center justify-center gap-2"
-            >
-              <Lock className="w-4 h-4 text-[#a0a0a0]" />
-              <span>LOCK TERMINAL</span>
-            </button>
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  updatePrivacySettings({ isAppLocked: true });
+                }}
+                className="w-full py-2.5 rounded bg-[#101010] border border-[#1C1C1C] text-xs font-mono text-[#f2f2f2] flex items-center justify-center gap-2 hover:bg-[#151515]"
+              >
+                <Lock className="w-4 h-4 text-[#a0a0a0]" />
+                <span>LOCK TERMINAL</span>
+              </button>
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  useApp().handleLogout();
+                }}
+                className="w-full py-2.5 rounded bg-transparent border border-rose-900/50 text-xs font-mono text-rose-500 flex items-center justify-center gap-2 hover:bg-rose-950/20"
+              >
+                <span>LOGOUT</span>
+              </button>
+            </div>
           </div>
           <div className="flex-1" onClick={() => setMobileMenuOpen(false)} />
         </div>
@@ -146,7 +158,25 @@ export const MainAppContent: React.FC = () => {
 export default function App() {
   return (
     <AppProvider>
-      <MainAppContent />
+      <AppContent />
     </AppProvider>
   );
+}
+
+function AppContent() {
+  const { isAuthenticated, isLoadingAuth } = useApp();
+
+  if (isLoadingAuth) {
+    return (
+      <div className="flex h-screen h-dvh w-screen bg-[#050505] text-[#f2f2f2] items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-[#666666]" />
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Login />;
+  }
+
+  return <MainAppContent />;
 }

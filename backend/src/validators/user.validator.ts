@@ -30,5 +30,11 @@ export const updateUserSchema = z.object({
   profileImage: z.string().url().optional(),
 });
 
+export const loginUserSchema = z.object({
+  email: z.string().email('Invalid email address').transform((v) => v.toLowerCase()),
+  password: z.string().min(1, 'Password is required'),
+});
+
 export type CreateUserInput = z.infer<typeof createUserSchema>;
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;
+export type LoginUserInput = z.infer<typeof loginUserSchema>;

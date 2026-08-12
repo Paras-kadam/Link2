@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type {
   User,
   Message,
@@ -8,10 +8,17 @@ import type {
   AppNotification,
   UserStatus,
 } from '../types';
-import { currentUser as defaultCurrentUser, partnerUser as defaultPartnerUser, initialMessages, initialNotifications } from '../mock/mockData';
+import { partnerUser as defaultPartnerUser, initialMessages, initialNotifications } from '../mock/mockData';
+import { authService } from '../services/authService';
 
 interface AppContextType {
-  currentUser: User;
+  // Auth state
+  isAuthenticated: boolean;
+  isLoadingAuth: boolean;
+  currentUser: User | null;
+  handleLogin: (email: string, pass: string) => Promise<void>;
+  handleLogout: () => Promise<void>;
+
   partnerUser: User;
   setPartnerUser: React.Dispatch<React.SetStateAction<User>>;
   messages: Message[];
@@ -56,7 +63,11 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [currentUser] = useState<User>(defaultCurrentUser);
+  // Auth State
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [isLoadingAuth, setIsLoadingAuth] = useState<boolean>(true);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+
   const [partnerUser, setPartnerUser] = useState<User>(defaultPartnerUser);
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [partnerStatus, setPartnerStatus] = useState<UserStatus>('online');
@@ -82,6 +93,35 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [notifications, setNotifications] = useState<AppNotification[]>(initialNotifications);
   const [activeToast, setActiveToast] = useState<{ title: string; message: string; type: string } | null>(null);
 
+  // Initialize Auth
+  useEffect(() => {
+    const initAuth = async () => {
+      try {
+        const { user } = await authService.getCurrentUser();
+        setCurrentUser(user);
+        setIsAuthenticated(true);
+      } catch (err) {
+        setIsAuthenticated(false);
+        setCurrentUser(null);
+      } finally {
+        setIsLoadingAuth(false);
+      }
+    };
+    initAuth();
+  }, []);
+
+  const handleLogin = async (email: string, pass: string) => {
+    const { user } = await authService.login(email, pass);
+    setCurrentUser(user);
+    setIsAuthenticated(true);
+  };
+
+  const handleLogout = async () => {
+    await authService.logout();
+    setIsAuthenticated(false);
+    setCurrentUser(null);
+  };
+
   // Call timer simulation
   useEffect(() => {
     let interval: any;
@@ -93,16 +133,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return () => clearInterval(interval);
   }, [activeCall?.state]);
 
-  const showToast = (title: string, message: string, type: string = 'info') => {
+  const showToast = useCallback((title: string, message: string, type: string = 'info') => {
     setActiveToast({ title, message, type });
     setTimeout(() => {
       setActiveToast(null);
     }, 4000);
-  };
+  }, []);
 
-  const closeToast = () => setActiveToast(null);
+  const closeToast = useCallback(() => setActiveToast(null), []);
 
-  const sendMessage = (content: string, type: Message['type'] = 'text', extra?: Partial<Message>) => {
+  const sendMessage = useCallback((content: string, type: Message['type'] = 'text', extra?: Partial<Message>) => {
+    if (!currentUser) return;
+    
     const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const newMsg: Message = {
       id: `msg_${Date.now()}`,
@@ -157,22 +199,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         showToast(`New Message from ${partnerUser.name}`, randomResp, 'message');
       }, 6000);
     }
-  };
+  }, [currentUser, partnerUser, replyingTo, showToast]);
 
-  const deleteMessage = (id: string) => {
+  const deleteMessage = useCallback((id: string) => {
     setMessages((prev) => prev.filter((m) => m.id !== id));
     showToast('Message Deleted', 'The message was permanently removed from local chat.', 'system');
-  };
+  }, [showToast]);
 
-  const togglePinMessage = (id: string) => {
+  const togglePinMessage = useCallback((id: string) => {
     setMessages((prev) => prev.map((m) => m.id === id ? { ...m, isPinned: !m.isPinned } : m));
-  };
+  }, []);
 
-  const toggleStarMessage = (id: string) => {
+  const toggleStarMessage = useCallback((id: string) => {
     setMessages((prev) => prev.map((m) => m.id === id ? { ...m, isStarred: !m.isStarred } : m));
-  };
+  }, []);
 
-  const addReaction = (messageId: string, emoji: string) => {
+  const addReaction = useCallback((messageId: string, emoji: string) => {
+    if (!currentUser) return;
     setMessages((prev) => prev.map((m) => {
       if (m.id !== messageId) return m;
       const currentReactions = m.reactions || {};
@@ -187,14 +230,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
       return { ...m, reactions: newReactions };
     }));
-  };
+  }, [currentUser]);
 
-  const clearChat = () => {
+  const clearChat = useCallback(() => {
     setMessages([]);
     showToast('Chat Cleared', 'All local chat history cleared.', 'system');
-  };
+  }, [showToast]);
 
-  const startCall = (type: 'voice' | 'video') => {
+  const startCall = useCallback((type: 'voice' | 'video') => {
     setActiveCall({
       id: `call_${Date.now()}`,
       type,
@@ -210,9 +253,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setActiveCall((prev) => prev ? { ...prev, state: 'connected', startTime: Date.now() } : null);
       showToast(`${type === 'voice' ? 'Voice' : 'Video'} Call Connected`, `Talking with ${partnerUser.name}`, 'call');
     }, 2500);
-  };
+  }, [partnerUser, showToast]);
 
-  const simulateIncomingCall = (type: 'voice' | 'video') => {
+  const simulateIncomingCall = useCallback((type: 'voice' | 'video') => {
     setActiveCall({
       id: `call_inc_${Date.now()}`,
       type,
@@ -222,14 +265,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       isVideoOn: type === 'video',
     });
     showToast(`Incoming ${type === 'voice' ? 'Voice' : 'Video'} Call`, `${partnerUser.name} is calling...`, 'call');
-  };
+  }, [partnerUser, showToast]);
 
-  const acceptCall = () => {
+  const acceptCall = useCallback(() => {
     setActiveCall((prev) => prev ? { ...prev, state: 'connected', startTime: Date.now() } : null);
-  };
+  }, []);
 
-  const endCall = () => {
-    if (activeCall) {
+  const endCall = useCallback(() => {
+    if (activeCall && currentUser) {
       const durationStr = `${Math.floor(activeCall.durationSeconds / 60)}m ${activeCall.durationSeconds % 60}s`;
       const callLogMsg: Message = {
         id: `msg_call_${Date.now()}`,
@@ -243,34 +286,38 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setMessages((prev) => [...prev, callLogMsg]);
     }
     setActiveCall(null);
-  };
+  }, [activeCall, currentUser, partnerUser]);
 
-  const toggleMuteCall = () => {
+  const toggleMuteCall = useCallback(() => {
     setActiveCall((prev) => prev ? { ...prev, isMuted: !prev.isMuted } : null);
-  };
+  }, []);
 
-  const toggleVideoCall = () => {
+  const toggleVideoCall = useCallback(() => {
     setActiveCall((prev) => prev ? { ...prev, isVideoOn: !prev.isVideoOn } : null);
-  };
+  }, []);
 
-  const updatePrivacySettings = (settings: Partial<PrivacySettings>) => {
+  const updatePrivacySettings = useCallback((settings: Partial<PrivacySettings>) => {
     setPrivacySettings((prev) => ({ ...prev, ...settings }));
     showToast('Privacy Updated', 'Privacy controls updated successfully.', 'security');
-  };
+  }, [showToast]);
 
-  const markNotificationRead = (id: string) => {
+  const markNotificationRead = useCallback((id: string) => {
     setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, read: true } : n));
-  };
+  }, []);
 
-  const clearAllNotifications = () => {
+  const clearAllNotifications = useCallback(() => {
     setNotifications([]);
-  };
+  }, []);
 
   const pinnedMessage = messages.find((m) => m.isPinned) || null;
 
   return (
     <AppContext.Provider
       value={{
+        isAuthenticated,
+        isLoadingAuth,
+        handleLogin,
+        handleLogout,
         currentUser,
         partnerUser,
         setPartnerUser,

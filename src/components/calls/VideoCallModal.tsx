@@ -65,7 +65,7 @@ export const VideoCallModal: React.FC = () => {
         {/* Local Self PIP Video Feed */}
         <div className="absolute bottom-4 right-4 w-28 h-36 md:w-36 md:h-48 bg-[#050505] rounded border border-[#1C1C1C] overflow-hidden shadow-lg">
           <img
-            src={currentUser.avatar}
+            src={currentUser?.avatar}
             alt="My Video Feed"
             className="w-full h-full object-cover"
           />

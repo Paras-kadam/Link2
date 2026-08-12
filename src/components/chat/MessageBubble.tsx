@@ -36,7 +36,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
     showToast,
   } = useApp();
 
-  const isSelf = message.senderId === currentUser.id || message.isSelf;
+  const isSelf = currentUser && (message.senderId === currentUser.id || message.isSelf);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [audioSpeed, setAudioSpeed] = useState<'1.0x' | '1.5x' | '2.0x'>('1.0x');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -315,7 +315,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
               key={emoji}
               onClick={() => addReaction(message.id, emoji)}
               className={`flex items-center gap-1 px-1.5 py-0.5 rounded border text-[11px] font-mono transition-colors ${
-                users.includes(currentUser.id)
+                users.includes(currentUser?.id || '')
                   ? 'bg-[#161616] border-[#666666] text-[#f2f2f2]'
                   : 'bg-[#0A0A0A] border-[#1C1C1C] text-[#a0a0a0]'
               }`}

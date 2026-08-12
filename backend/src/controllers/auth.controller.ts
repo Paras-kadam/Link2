@@ -1,28 +1,79 @@
 import type { Request, Response, NextFunction } from 'express';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import { env } from '../config/env.js';
+import { User } from '../models/User.js';
 import { sendSuccess } from '../utils/response.js';
+import { UnauthorizedError } from '../utils/errors.js';
+import { type LoginUserInput } from '../validators/user.validator.js';
+import type { AuthRequest } from '../middleware/auth.js';
 
-export const registerUser = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+const cookieOptions = {
+  httpOnly: true,
+  secure: env.NODE_ENV === 'production',
+  sameSite: 'lax' as const, // For local dev with different ports, lax is fine. 'strict' may block initial navigations across ports.
+  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+};
+
+export const loginUser = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    // TODO: Implement user registration (Phase 3)
-    sendSuccess(res, { message: 'User registration endpoint placeholder' }, 201);
+    const { email, password } = req.body as LoginUserInput;
+
+    // Find user by email and explicitly select passwordHash
+    const user = await User.findOne({ email }).select('+passwordHash');
+    
+    if (!user) {
+      throw new UnauthorizedError('Invalid credentials');
+    }
+
+    // Verify user is active
+    if (!user.isActive) {
+      throw new UnauthorizedError('Account is disabled');
+    }
+
+    // Compare password
+    const isMatch = await bcrypt.compare(password, user.passwordHash);
+    if (!isMatch) {
+      throw new UnauthorizedError('Invalid credentials');
+    }
+
+    // Update lastLoginAt
+    user.lastLoginAt = new Date();
+    await user.save();
+
+    // Generate JWT
+    const token = jwt.sign(
+      { userId: user._id },
+      env.JWT_SECRET,
+      { expiresIn: env.JWT_EXPIRES_IN as jwt.SignOptions['expiresIn'] }
+    );
+
+    // Set cookie
+    res.cookie('token', token, cookieOptions);
+
+    // Prepare safe user object (removing passwordHash)
+    const userObject = user.toJSON();
+
+    sendSuccess(res, { user: userObject });
   } catch (error) {
     next(error);
   }
 };
 
-export const loginUser = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const logoutUser = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    // TODO: Implement user login (Phase 3)
-    sendSuccess(res, { message: 'User login endpoint placeholder' });
+    res.clearCookie('token', { ...cookieOptions, maxAge: 0 });
+    sendSuccess(res, { message: 'Logged out successfully' });
   } catch (error) {
     next(error);
   }
 };
 
-export const getCurrentUser = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const getCurrentUser = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
-    // TODO: Implement get current user (Phase 3)
-    sendSuccess(res, { message: 'Get current user endpoint placeholder' });
+    // req.user is guaranteed to exist because this route will use requireAuth middleware
+    const user = req.user!;
+    sendSuccess(res, { user });
   } catch (error) {
     next(error);
   }
